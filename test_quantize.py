@@ -1,6 +1,6 @@
 # test values -- this is voltages but realistically it could just be unsigned ints between 0 and 65535
 
-from quantize import quantize, find_nearest_enabled
+from quantize import hysteresis, quantize, find_nearest_enabled, update_enabled_dict
 
 test_values = {
   0 : 0,
@@ -103,6 +103,21 @@ test_notes = [1024,
               7168,
               9216,]
 
+'''
+sw1: 0000
+sw2: 1024
+sw3: 2048
+sw4: 3072
+sw5: 4096
+sw6: 5120
+sw7: 6144
+sw8: 7168
+sw9: 8192
+sw10: 9216
+sw11: 10240
+sw12: 11264
+'''
+
 enabled_notes = {0:0, 
                  1024:1, 
                  2048:0,
@@ -115,20 +130,79 @@ enabled_notes = {0:0,
                  9216:0,
                  10240:1,
                  11264:1,
+                 99999:0,
                  }
 
-'''sw1: 0000
-sw2: 1024
-sw3: 2048
-sw4: 3072
-sw5: 4096
-sw6: 5120
-sw7: 6144
-sw8: 7168
-sw9: 8192
-sw10: 9216
-sw11: 10240
-sw12: 11264'''
+enabled_notes_2 = {0:0, 
+                 1024:0, 
+                 2048:1,
+                 3072:0,
+                 4096:1,
+                 5120:1,
+                 6144:1,
+                 7168:0,
+                 8192:1,
+                 9216:0,
+                 10240:1,
+                 11264:1,
+                 99999:1,
+                 }
+
+sample_int_arr = [
+                  1, #99999
+                  1, #11264
+                  1, #6144
+                  1, #5120
+                  1, #4096
+                  0, #3072
+                  1, #2048
+                  1, #99999
+                  0, #0
+                  0, #1024
+                  1, #10240
+                  0, #9216
+                  1, #8192
+                  0, #7168
+                  1, #99999
+                  1, #99999
+                  ]
+key_array = [
+  99999,
+  11264,
+  6144,
+  5120,
+  4096,
+  3072,
+  2048,
+  99999,
+  0,
+  1024,
+  10240,
+  9216,
+  8192,
+  7168,
+  99999,
+  99999
+  ]
+
+'''
+# not using GPIOA0
+sw12 : 1,
+sw7 : 2,
+sw6 : 3,
+sw5 : 4,
+sw4 : 5,
+sw3 : 6,
+# not using GPIOA7
+sw1 : 8,
+sw2 : 9,
+sw11 : 10,
+sw10 : 11,
+sw9 : 12,
+sw8 : 13,
+# not using GPIOB6 aka 14
+# not using GPIOB7 aka 15
+'''
 
 def test_find_nearest_enabled():
   # first, high remainder:
@@ -144,3 +218,26 @@ def test_find_nearest_enabled():
     print("testing", note, "against", enabled_notes, "with remainder", remainder)
     test_note = find_nearest_enabled(note, remainder, enabled_notes) 
     assert test_note in enabled_notes
+
+def test_update_enabled_dict():
+  print(enabled_notes, "is not", enabled_notes_2)
+  update_enabled_dict(key_array, sample_int_arr, enabled_notes)
+  print(enabled_notes, "is", enabled_notes_2)
+  assert enabled_notes == enabled_notes_2
+
+hysteresis_test_vals = {
+  0 : 0,
+  16 : 0,
+  32 : 0,
+  48 : 48,
+  32 : 48,
+  48 : 48,
+  64 : 48,
+  80 : 48,
+  96 : 96,
+}
+
+def test_hysteresis():
+  for key,value in hysteresis_test_vals.items():
+    print(key, value)
+    assert value == hysteresis(key,value)

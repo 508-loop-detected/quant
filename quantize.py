@@ -1,3 +1,9 @@
+def hysteresis(adc_output, last_value):
+  if(abs(adc_output - last_value) <= 32):
+    return last_value
+  else:
+    return adc_output
+
 def quantize(adc_output):
   # 1 oct = 12288
   (octave, note) = divmod(adc_output, 12288)
@@ -44,6 +50,13 @@ def find_nearest_enabled(note, remainder, notes):
     return doublecheck(note, notes, remainder)
 
 
+def update_enabled_dict(key_arr, int_arr, notes_dict):
+  # key_arr is the reference for switches to notes
+  # int_arr is the array returned by the interrupt
+  # notes_dict is the dict of enabled notes
+  for i in range(16):
+    notes_dict[key_arr[i]] = int_arr[i]
+
 # for the next time I get to work on this:
 # hysteresis!
 # should be storing the last-seen adc_output
@@ -52,6 +65,3 @@ def find_nearest_enabled(note, remainder, notes):
 # but you shouldn't update the last-seen with the new value
 # otherwise a slowly steadily rising or falling input
 # could get stuck on one value inappropriately
-# caveat: switches can get flipped at any time
-# so you probably still want to test every round
-# against the switches array
