@@ -21,10 +21,10 @@ def doublecheck(note, notes, remainder, jump = 1):
     note_one = note - (1024*jump)
     note_two = note + (1024*jump)
   print("trying", note_one, "and then", note_two)
-  if note_one in notes:
+  if notes[note_one]:
     print("hit on", note_one)
     return note_one
-  elif note_two in notes:
+  elif notes[note_two]:
     print("hit on", note_two)
     return note_two
   else:
@@ -35,7 +35,7 @@ def find_nearest_enabled(note, remainder, notes):
   # checks to see if a note is enabled
   # and returns the nearest match if not
   print("looking for closest match to", note, "in", notes)
-  if note in notes:
+  if notes[note]:
     print("hit on", note)
     return note
   else:
