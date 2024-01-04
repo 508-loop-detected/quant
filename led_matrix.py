@@ -1,26 +1,27 @@
-# SPDX-FileCopyrightText: 2023 Ross Grady for 508: Loop Detected
+# SPDX-FileCopyrightText: 2024 Ross Grady for 508: Loop Detected
 #
 # SPDX-License-Identifier: CC-BY-NC-SA-4.0
 
-import digitalio
 import board
+from digitalio import DigitalInOut, Direction
 
+# updated for the QT PY RP2040:
 
 def init_pins():
-    A1 = digitalio.DigitalInOut(board.MISO)
-    A2 = digitalio.DigitalInOut(board.A4)
-    A3 = digitalio.DigitalInOut(board.A3)
-    C1 = digitalio.DigitalInOut(board.RX)
-    C2 = digitalio.DigitalInOut(board.MOSI)
-    C3 = digitalio.DigitalInOut(board.SCK)
-    C4 = digitalio.DigitalInOut(board.A5)
-    A1.direction = digitalio.Direction.OUTPUT
-    A2.direction = digitalio.Direction.OUTPUT
-    A3.direction = digitalio.Direction.OUTPUT
-    C1.direction = digitalio.Direction.OUTPUT
-    C2.direction = digitalio.Direction.OUTPUT
-    C3.direction = digitalio.Direction.OUTPUT
-    C4.direction = digitalio.Direction.OUTPUT
+    A1 = DigitalInOut(board.A2)
+    A2 = DigitalInOut(board.TX)
+    A3 = DigitalInOut(board.SCK)
+    C1 = DigitalInOut(board.A0)
+    C2 = DigitalInOut(board.RX)
+    C3 = DigitalInOut(board.A1)
+    C4 = DigitalInOut(board.A3)
+    A1.direction = Direction.OUTPUT
+    A2.direction = Direction.OUTPUT
+    A3.direction = Direction.OUTPUT
+    C1.direction = Direction.OUTPUT
+    C2.direction = Direction.OUTPUT
+    C3.direction = Direction.OUTPUT
+    C4.direction = Direction.OUTPUT
     return(A1,A2,A3,C1,C2,C3,C4)
 
 

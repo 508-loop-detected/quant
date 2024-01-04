@@ -1,65 +1,33 @@
-# test values -- this is voltages but realistically it could just be unsigned ints between 0 and 65535
 
-from quantize import hysteresis, quantize, find_nearest_enabled, update_enabled_dict
+
+from quantize import \
+  hysteresis, \
+  quantize, \
+  doublecheck, \
+  find_nearest_enabled \
+
 
 test_values = {
-  0 : 0,
-  .08333 : .08333,
-  .16666 : .16666,
-  1 : 1,
-  1.5 : 1.5,
-  2 : 2,
-  2.5 : 2.5,
-  3 : 3,
-  4 : 4,
-  5 : 5,
-  5.33333 : 5.33333,
-  3.08333 : 3.08333,
-  3.1 : 3.08333,
-  3.16666 : 3.16666,
-  3.2 : 3.16666,
-  3.25 : 3.25,
-  3.33333 : 3.33333,
-  3.3 : 3.33333,
-  3.41666 : 3.41666,
-  3.4 : 3.41666,
-  3.43 : 3.41666,
-  3.44 : 3.41666,
-  3.45 : 3.41666,
-  3.46 : 3.5,
-  3.47 : 3.5,
-  3.415 : 3.41666,
-  3.417 : 3.41666,
-  3.5 : 3.5,
+0: 0,
+300: 0,
+511: 0,
+512: 1024,
+625: 1024,
+1024: 1024,
+1151: 1024,
+1535: 1024,
+1536: 2048,
+2048: 2048,
+3072: 3072,
+4096: 4096,
+5120: 5120,
+6144: 6144,
+7168: 7168,
+8192: 8192,
+9216: 9216,
+10240: 10240,
+11264: 11264
 }
-
-def test_quantize():
-  for key, value in test_values.items():
-    # mocking the input scaler + ADC:
-    print("voltage in",key)
-    shifted_voltage = key * .61875 # scaled by op amp
-    print("shifted voltage",shifted_voltage)
-    # range of the ADC is 3.3V subdivided into 0 - 65535
-    # smallest voltage increment measurable is 3.3/65536
-    # however it's really a 12-bit ADC so it's actually
-    # (0 - 4095) * 16
-    voltage_increment = 3.3 / 4096 # 0.0008056640625 volts
-    adc_output = int(shifted_voltage/voltage_increment) << 4
-    print("adc output",adc_output)
-    # everything above here is done in the ADC, invisible to us
-    # here is where we start the real quantization
-    quantized_value,b = quantize(adc_output)
-    print("quantized value is", quantized_value,"and remainder is", b)
-    # now we're just mocking the DAC + output scaler:
-    dac_input = int(quantized_value) >> 4
-    print("dac input", dac_input)
-    dac_output = dac_input * voltage_increment
-    print("dac output", dac_output)
-    voltage_out_intermediate = (dac_output/.61875) * 100000 # scaled by op amp
-    voltage_out = int(voltage_out_intermediate)/100000
-    print("voltage out", voltage_out)
-    print("-----",)
-    assert (voltage_out == value) | (voltage_out == value - 0.00001)
 
 
 # so what *are* the note boundaries that result in the right output?
@@ -118,16 +86,16 @@ sw11: 10240
 sw12: 11264
 '''
 
-enabled_notes = {0:0, 
+enabled_notes = {0:1, 
                  1024:1, 
-                 2048:0,
+                 2048:1,
                  3072:1,
                  4096:1,
-                 5120:0,
-                 6144:0,
-                 7168:0,
+                 5120:1,
+                 6144:1,
+                 7168:1,
                  8192:1,
-                 9216:0,
+                 9216:1,
                  10240:1,
                  11264:1,
                  99999:0,
@@ -204,40 +172,50 @@ sw8 : 13,
 # not using GPIOB7 aka 15
 '''
 
+def test_quantize():
+  for key, value in test_values.items():
+    # mocking the input scaler + ADC:
+    # here is where we start the real quantization
+    quantized_value, enabled_note = quantize(key,enabled_notes)
+    print("input is", key, "and expected output is", value)
+    print("quantized value is", quantized_value,"and enabled note is", enabled_note)
+    assert quantized_value == value
+
+
 def test_find_nearest_enabled():
   # first, high remainder:
   remainder = 706
   for note in test_notes:
-    print("testing", note, "against", enabled_notes, "with remainder", remainder)
+    print("testing", note, "against", enabled_notes_2, "with remainder", remainder)
     test_note = find_nearest_enabled(note, remainder, enabled_notes) 
     print("got", test_note)
-    assert test_note in enabled_notes
+    assert test_note in enabled_notes_2
   # next, low remainder:
   remainder = 308
   for note in test_notes:
-    print("testing", note, "against", enabled_notes, "with remainder", remainder)
-    test_note = find_nearest_enabled(note, remainder, enabled_notes) 
-    assert test_note in enabled_notes
+    print("testing", note, "against", enabled_notes_2, "with remainder", remainder)
+    test_note = find_nearest_enabled(note, remainder, enabled_notes_2) 
+    assert test_note in enabled_notes_2
 
-def test_update_enabled_dict():
-  print(enabled_notes, "is not", enabled_notes_2)
-  update_enabled_dict(key_array, sample_int_arr, enabled_notes)
-  print(enabled_notes, "is", enabled_notes_2)
-  assert enabled_notes == enabled_notes_2
 
-hysteresis_test_vals = {
-  0 : 0,
-  16 : 0,
-  32 : 0,
-  48 : 48,
-  32 : 48,
-  48 : 48,
-  64 : 48,
-  80 : 48,
-  96 : 96,
-}
+
+hysteresis_test_vals = [
+  (0,0, False),
+  (16,0, False),
+  (32,0, False),
+  (35,0, True),
+  (48,48, False),
+  (32,48, False),
+  (48,48, False),
+  (64,48, False),
+  (80,48, False),
+  (96,96, False),
+  (96,104, False),
+  (96,128, False),
+  (96,136, True),
+]
 
 def test_hysteresis():
-  for key,value in hysteresis_test_vals.items():
+  for (key,value,outcome) in hysteresis_test_vals:
     print(key, value)
-    assert value == hysteresis(key,value)
+    assert outcome == hysteresis(key,value)

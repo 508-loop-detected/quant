@@ -221,3 +221,26 @@ uint8_t quantizeValue(uint16_t input)
 	io_setCurrentQuantizedValue(note);
 	return quantValue*2;
 }
+
+
+
+
+
+
+OK so now my input is going to range from 0V to 5.25V
+
+It'll be coming in bipolar so 0V will be a negative number. So first we have to fix the offset.
+
+if your scaling factor is 2/3, then with VDD = 5V and bias = ~2.5V:
+
+min input == -26752
+0V input == -26544
+1V input == -15984
+2V input == -5424
+3V input == 5136
+4V input == 15696
+5V input == 26256
+max input == 26736
+
+But we're going to make it 5.25 so it'll be offset by a bit.
+

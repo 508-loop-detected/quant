@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Ross Grady for 508: Loop Detected
+# SPDX-FileCopyrightText: 2024 Ross Grady for 508: Loop Detected
 #
 # SPDX-License-Identifier: CC-BY-NC-SA-4.0
 
@@ -8,12 +8,65 @@ import time
 
 from adafruit_mcp230xx.mcp23017 import MCP23017
 from digitalio import Direction
+import adafruit_mcp4725
+
+import adafruit_ads1x15.ads1115 as ADS
+from adafruit_ads1x15.analog_in import AnalogIn
 
 
-def mcp_init():
+def init_i2c():
+  # Initialize the I2C bus:
+  i2c = busio.I2C(board.SCL, board.SDA)
+  return i2c
+
+
+def init_analogio(i2c):
+  dac = adafruit_mcp4725.MCP4725(i2c, address=96)
+  adc = ADS.ADS1115(i2c, gain=2/3)
+  input_voltage = AnalogIn(adc, ADS.P0)
+  ground_ref = AnalogIn(adc, ADS.P1)
+  voltage_ref = AnalogIn(adc, ADS.P2)
+  output_voltage = AnalogIn(adc, ADS.P3)
+  return dac, input_voltage, ground_ref, voltage_ref, output_voltage
+
+
+def get_voltage(source):
   try:
-    # Initialize the I2C bus:
-    i2c = busio.I2C(board.SCL, board.SDA)
+    return source.voltage
+  except Exception as exc:
+    #fuckit let's try again
+    print("Error reading voltage:",exc)
+    time.sleep(.0001)
+    return get_voltage(source)
+
+
+def get_value(source):
+  try:
+    return source.value
+    # pin.value will be 0-65535
+  except Exception as exc:
+    #fuckit let's try again
+    print("Error reading value:",exc)
+    time.sleep(.0001)
+    return get_value(source)
+
+
+def set_value(dac, value):
+  try:
+    if value > 65535:
+      value = 65535
+    elif value < 0:
+      value = 0
+    dac.value = value
+  except Exception as exc:
+    print("Error setting voltage", value, exc)
+    #fuckit, let's try again
+    time.sleep(.0001)
+    set_value(dac, value)
+
+
+def mcp_init(i2c):
+  try:
 
     # Create an instance of MCP23017 class:
     mcp = MCP23017(i2c) 
@@ -57,7 +110,7 @@ def configure_interrupts(mcp):
     mcp.gppu = 0xFFFF # pull up all pins to eliminate spurious interrupts from unconnected pins
     mcp.interrupt_enable = 0xFFFF  # enable interrupts on all pins
     mcp.interrupt_configuration = 0x0000  # compare pins against previous values
-    mcp.io_control = 0x44  # Interrupt as open drain and mirrored
+    mcp.io_control = 0x44  # 
     mcp.clear_ints()  # clear all interrupts
   except Exception as exc:
     print("Error configuring interrupts:", exc)
@@ -82,6 +135,3 @@ def read_ints(mcp):
     print("Error reading interrupts:", exc)
     time.sleep(.0001)
     read_ints(mcp)
-
-
-# this works! And it's cleaner/simpler than what I was doing.
