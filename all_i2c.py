@@ -82,21 +82,22 @@ def mcp_init(i2c):
 
     '''
     # not using GPIOA0
-    sw12 = pins[1]
-    sw7 = pins[2]
-    sw6 = pins[3]
-    sw5 = pins[4]
-    sw4 = pins[5]
-    sw3 = pins[6]
+    sw12: A1: p1
+    sw7: A2: p2
+    sw6: A3: P3
+    sw5: A4: p4
+    sw4: A5: p5
+    sw2: A6: p6
     # not using GPIOA7
-    sw1 = pins[8]
-    sw2 = pins[9]
-    sw11 = pins[10]
-    sw10 = pins[11]
-    sw9 = pins[12]
-    sw8 = pins[13]
+    sw1: B0: p8
+    sw3: B1: p9
+    sw11: B2: p10
+    sw10: B3: p11
+    sw9: B4: p12
+    sw8: B5: p13
     # not using GPIOB6 aka 14
     # not using GPIOB7 aka 15
+
     '''
     return (mcp, pins)
   except Exception as exc:
