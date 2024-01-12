@@ -1,246 +1,35 @@
-Input: 0 - 6.6V CV buffered and scaled through some op amp situation
+# quants
 
-  into the ADC input pin on the M4 feather
-  code to:
-    - read value
+<img src="quants.jpeg" width=400>
 
-      # SPDX-FileCopyrightText: 2018 Kattni Rembor for Adafruit Industries
-      #
-      # SPDX-License-Identifier: MIT
+It's a quantizer. This is my first module that includes a microcontroller and thus source code. There are 5 files:
+- main.py
+- lib/all_i2c.py
+- lib/drive_neopixel.py
+- lib/led_matrix.py
+- lib/quantize.py
 
-      """CircuitPython Essentials Analog In example"""
-      import time
-      import board
-      from analogio import AnalogIn
+On my module, I compile the libs to bytecode mpy files using the [Circuitpython cross-compiler](https://learn.adafruit.com/welcome-to-circuitpython/library-file-types-and-frozen-libraries#creating-an-mpy-file-3118108)
 
-      analog_in = AnalogIn(board.A1) // USE A2 for INPUT
+The microcontroller (really a dev board) this was designed around is the [Adafruit QT Py RP2040](https://learn.adafruit.com/adafruit-qt-py-2040). You can use any Circuitpython-compatible microcontroller if you want to redesign the boards -- you'll just need to modify any/all pinout references in the code :) 
 
-      def get_voltage(pin):
-          return (pin.value * 3.3) / 65536
-          # pin.value will be 0-65535
+What's the deal with it? It's the same format as the following quantizers you may be familiar with:
+- [Intellijel uScale](https://www.modulargrid.net/e/intellijel-%CE%BCscale-v2)
+- [Sonic Potions Penrose](https://www.modulargrid.net/e/sonic-potions-penrose-quantizer)
+- any/every other quantizer that has a bunch of switches arranged like piano keys
 
-      while True:
-          print((get_voltage(analog_in),))
-          time.sleep(0.1)
+In this case, the switches are submini toggles instead of pushbuttons because I really don't like pushbuttons all that much.
 
+It can be built as a 5HP 3U module, or an 18HP 1U module (PulpLogic format).
 
+There are surface-mount LEDs on the back of the IO board, which fire through holes in the PCB. They're bi-color & you'll need to be careful to use the right ones. You also need light pipes to get to the front panel -- I use Bivar PLPC2-500s.
 
+You'll want to use 2.54mm female headers to mount the QT Py, more than likely, to provide enough room for airflow (and to make it possible to remove it in the future). Adafruit sells these low-profile ones that I haven't found elsewhere: https://www.adafruit.com/product/3008
 
+You can trim 2-3mm off your male headers to get a nice snug fit, & it saves you 3mm in overall depth, if you care about such things. 
 
+For everything else other than the QT Py mount, this module, like many of my modules, uses 2mm-pitch male/female headers. Be sure you order/use the right thing!
 
-    - quantize to 1/12 V standard
+Most ICs are SOIC 8/14/16; all passives are 0805. The BOMs prefixed with `fixed` are easier to read; the others can be used along with the Pick-and-place and gerber files to order PCBs.
 
-      The Penrose code looks like this:
-
-      #define INPUT_VOLTAGE			5.f	//Volt
-      #define OCTAVES				10.f	//octaves
-      #define VOLT_PER_OCTAVE			(INPUT_VOLTAGE/OCTAVES) // 0.5
-      #define VOLT_PER_NOTE			(VOLT_PER_OCTAVE/12.f)  // 0.04166666666666666667
-      #define VOLT_PER_ADC_STEP		(INPUT_VOLTAGE/1024.f)  // 0.0048828125
-      #define ADC_STEPS_PER_NOTE		(VOLT_PER_NOTE/VOLT_PER_ADC_STEP) //~8.53
-
-
-      So my version of that would be:
-
-      #define INPUT_VOLTAGE			3.3.f	//Volt
-      #define OCTAVES				11.f	//octaves
-      #define VOLT_PER_OCTAVE			(INPUT_VOLTAGE/OCTAVES) // 0.3
-      #define VOLT_PER_NOTE			(VOLT_PER_OCTAVE/12.f)  // 0.025
-      #define VOLT_PER_ADC_STEP		(INPUT_VOLTAGE/4096.f)  // 0.0008056640625
-      #define ADC_STEPS_PER_NOTE		(VOLT_PER_NOTE/VOLT_PER_ADC_STEP) // 31.03030303030303
-
-      So it's a 12-bit ADC but the thingy uses 16-bit numbers so the minimum step is 16
-
-      3.3V / 65536 == 0.000050354003906 volts per 16-bit ADC increment
-      0.000050354003906 * 16 == 0.0008056640625 volts per actual 12-bit ADC increment
-      31.03030303030303030303 == ADC steps per note
-      Can we round? Or if we round, does shitty stuff happen?
-
-      The goal should be that at 1V in, you're always at 0.3V out
-
-      To get 0.3V you'd just tell it to do: 5,957.818181847761483 (LOL)
-      But so I'm pretty sure given that you have +/- 8 in either direction due to the chopping off of the bottom 4 LSBs, you could round that to 5958.
-
-      So to get 0.025 (which is our version of .08333333333) you'd do 0.025/0.000050354003906 == 496.484848487313457
-
-      So can you round that to 496????
-
-      496
-      922
-      1,488
-      1,984
-      2,480
-      2,976
-      3,472
-      3,968
-      4,464
-      4,960
-      5,456
-      5,952
-
-      So if you do round it to 496 then after an octave you're at 5952 instead of 5958
-
-      So this is why he was doing this math like that -- we've lost 6, or about a half per step
-
-      So instead of going up by 496 or 496.5, you multiply 496.5 * 2 == 993
-
-      And then once you've done all your math, divide the final number by 2.
-
-Hmmmm, so this looks promising: 40k   	0.4	    0.0333333333333333	    0.00005035400390625	   
-661.979797979797 DAC steps per note
-
-Could safely be rounded to 662 DAC steps per note & not cause any trouble until you got to 22 octaves.
-
-      
-      Let's actually think about this. So we're using a scaling op-amp that follows the
-      inverting scaling op amp formula:
-
-      Vout = - Rf/Rin x Vin
-      Vout = - 30/100 x Vin
-
-      So our VOLT_PER_OCTAVE = .3 because .3V = 30/100 x 1V
-      OCTAVES doesn't really matter as long as we stick to the formula, but we can reverse engineer it
-      our input voltage range is 3.3V so 3.3V / .3 == 11 octaves maximum range 
-
-
-    - lookup closest allowable value from 'notes-enabled' array
-    - tell correct LED to light up
-    - output value via DAC pin
-
-Output: 0 - 3.3V CV buffered and scaled through some op amp situation
-
-
-# SPDX-FileCopyrightText: 2018 Kattni Rembor for Adafruit Industries
-#
-# SPDX-License-Identifier: MIT
-
-"""CircuitPython Analog Out example"""
-import board
-from analogio import AnalogOut
-
-analog_out = AnalogOut(board.A0) // USE A0 for OUTPUT
-
-while True:
-    # Count up from 0 to 65535, with 64 increment
-    # which ends up corresponding to the DAC's 10-bit range
-    for i in range(0, 65535, 64):
-        analog_out.value = i
-
-
-Hmm, the 51 is 12-bit but is it still constrained to this range?
-
-  The DAC on the SAMD21 is a 10-bit output, from 0-3.3V. So in theory you will have a resolution of 0.0032 Volts per bit. To allow CircuitPython to be general-purpose enough that it can be used with chips with anything from 8 to 16-bit DACs, the DAC takes a 16-bit value and divides it down internally.
-
-  For example, writing 0 will be the same as setting it to 0 - 0 Volts out.
-
-  Writing 5000 is the same as setting it to 5000 / 64 = 78, and 78 / 1024 * 3.3V = 0.25V output.
-
-  Writing 65535 is the same as 1023 which is the top range and you'll get 3.3V output
-
-We should do some tests!
-
-
-Switch 1 - 12
-
-  into digital I/O pins on _____
-  code to:
-    - read value
-    - update correct slot in 'notes-enabled' array
-
-LED 1 - 12
-
-  fed from digital I/O pins on ______
- 
-
-
-
-
-Here's the whole quantize function from Penrose:
-
-#define INPUT_VOLTAGE			5.f	//Volt
-#define OCTAVES				10.f	//octaves
-#define VOLT_PER_OCTAVE			(INPUT_VOLTAGE/OCTAVES) // 0.5
-#define VOLT_PER_NOTE			(VOLT_PER_OCTAVE/12.f)  // 0.04166666666666666667
-#define VOLT_PER_ADC_STEP		(INPUT_VOLTAGE/1024.f)  // 0.0048828125
-#define ADC_STEPS_PER_NOTE		(VOLT_PER_NOTE/VOLT_PER_ADC_STEP) //~8.53
-
-static uint8_t lastInput=0;
-uint8_t quantizeValue(uint16_t input)
-{
-
-  // so literally if there are no switches on, it just outputs 0?
-  if(io_getActiveSteps()==0)
-  {
-    //no stepselected
-    io_setCurrentQuantizedValue(99); //no active step LED
-    return 0;
-  }
-  
-  // this is the hysteresis -- basically, if the thing hasn't changed by at least 2, just return the same value as before
-  if(abs(input-lastInput) >= 2)
-  {
-    lastInput = input;
-  } else return lastQuantValue;
-  
-	//quantize input value to all steps
-
-
-  // he's concerned about floating point math here, so he multiplies everything by 2 and then divides later
-	/* instead of input/ADC_STEPS_PER_NOTE we use the magic number 17 here.
-	 * ADC_STEPS_PER_NOTE = 8.5 which will reult in a rounding error pretty quick
-	 * so we use ADC_STEPS_PER_NOTE * 2 = 17
-	 * we shift the result up by ~ADC_STEPS_PER_NOTE/2 = 8
-	 * to bring the note values (played by keyboard fr example) in the middle of a step, 
-	 * thus increasing the note tracking over several octaves
-	 */
-	uint8_t quantValue = ((input<<1)+8)/17;//ADC_STEPS_PER_NOTE;
-
-	//calculate the current active step
-	uint8_t octave = quantValue/12;
-	uint8_t note = quantValue-(octave*12);
-
-	
-	//quantize to active steps
-	//search for the lowest matching activated note (lit led)
-	int i=0;
-	for(;i<13;i++)
-	{
-	  if( ((1<<  ((note+i)%12) ) & io_getActiveSteps()) != 0) break;
-	}
-	
-	note = note+i;
-	if(note>=12)
-	{
-	  note -= 12;
-	  octave++;
-	}
-	
-	quantValue = octave*12+note;
-	
-	//store to matrix
-	io_setCurrentQuantizedValue(note);
-	return quantValue*2;
-}
-
-
-
-
-
-
-OK so now my input is going to range from 0V to 5.25V
-
-It'll be coming in bipolar so 0V will be a negative number. So first we have to fix the offset.
-
-if your scaling factor is 2/3, then with VDD = 5V and bias = ~2.5V:
-
-min input == -26752
-0V input == -26544
-1V input == -15984
-2V input == -5424
-3V input == 5136
-4V input == 15696
-5V input == 26256
-max input == 26736
-
-But we're going to make it 5.25 so it'll be offset by a bit.
 
