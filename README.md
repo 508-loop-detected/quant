@@ -1,6 +1,5 @@
-# quants
+# quant
 
-<img src="quants.jpeg" width=400>
 
 It's a quantizer. This is my first module that includes a microcontroller and thus source code. There are 5 files:
 - main.py
