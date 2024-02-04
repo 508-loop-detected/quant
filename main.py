@@ -165,7 +165,7 @@ async def catch_cal_button_press(cal_button):
 async def calibration():
   global offset
   global speed
-  volts = [0, 12288, 24576, 36864, 49152, 61440]
+  volts = [12288, 24576, 36864, 49152, 61440]
   while True:
     set_value(dac, volts[volt])
     out = get_voltage(output_voltage)
