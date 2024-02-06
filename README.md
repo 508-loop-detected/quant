@@ -9,6 +9,13 @@ It's a quantizer. This is my first module that includes a microcontroller and th
 - lib/led_matrix.py
 - lib/quantize.py
 
+The additional dependencies are as follows:
+- asyncio
+- adafruit_ticks
+- adafruit_mcp230xx
+- adafruit_mcp4725
+- adafruit_ads1x15
+
 On my module, I compile the libs to bytecode mpy files using the [Circuitpython cross-compiler](https://learn.adafruit.com/welcome-to-circuitpython/library-file-types-and-frozen-libraries#creating-an-mpy-file-3118108)
 
 The microcontroller (really a dev board) this was designed around is the [Adafruit QT Py RP2040](https://learn.adafruit.com/adafruit-qt-py-2040). You can use any Circuitpython-compatible microcontroller if you want to redesign the boards -- you'll just need to modify any/all pinout references in the code :) 
